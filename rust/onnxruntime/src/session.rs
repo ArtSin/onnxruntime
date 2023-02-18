@@ -111,6 +111,30 @@ impl<'a> SessionBuilder<'a> {
             memory_type: MemType::Default,
         })
     }
+    
+    /// Set the session to use CUDA
+    pub fn use_cuda(self, device_id: i32) -> Result<SessionBuilder<'a>> {
+        let options = sys::OrtCUDAProviderOptions {
+            device_id,
+            cudnn_conv_algo_search: sys::OrtCudnnConvAlgoSearch::OrtCudnnConvAlgoSearchDefault,
+            gpu_mem_limit: usize::MAX,
+            arena_extend_strategy: 0,
+            do_copy_in_default_stream: 1,
+            has_user_compute_stream: 0,
+            user_compute_stream: std::ptr::null_mut(),
+            default_memory_arena_cfg: std::ptr::null_mut(),
+            tunable_op_enabled: 0,
+        };
+        let status = unsafe {
+            self.env
+                .env()
+                .api()
+                .SessionOptionsAppendExecutionProvider_CUDA
+                .unwrap()(self.session_options_ptr, &options as *const _)
+        };
+        status_to_result(status).map_err(OrtError::SessionOptions)?;
+        Ok(self)
+    }
 
     /// Configure the session to use a number of threads
     pub fn with_intra_op_num_threads(self, num_threads: i16) -> Result<SessionBuilder<'a>> {
