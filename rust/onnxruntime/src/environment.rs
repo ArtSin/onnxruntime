@@ -152,6 +152,25 @@ impl Environment {
                 "Environment created."
             );
 
+            // Create and register shared memory allocator
+            let mut memory_info_ptr: *mut sys::OrtMemoryInfo = std::ptr::null_mut();
+            let status = unsafe {
+                (*api).CreateCpuMemoryInfo.unwrap()(
+                    sys::OrtAllocatorType::OrtArenaAllocator,
+                    sys::OrtMemType::OrtMemTypeDefault,
+                    &mut memory_info_ptr,
+                )
+            };
+            status_to_result(status).map_err(OrtError::Environment)?;
+            let mut arena_cfg_ptr: *mut sys::OrtArenaCfg = std::ptr::null_mut();
+            let status =
+                unsafe { (*api).CreateArenaCfg.unwrap()(0, -1, -1, -1, &mut arena_cfg_ptr) };
+            status_to_result(status).map_err(OrtError::Environment)?;
+            let status = unsafe {
+                (*api).CreateAndRegisterAllocator.unwrap()(env_ptr, memory_info_ptr, arena_cfg_ptr)
+            };
+            status_to_result(status).map_err(OrtError::Environment)?;
+
             Ok::<_, OrtError>(Arc::new(Mutex::new(_EnvironmentSingleton {
                 name: cname,
                 env_ptr,

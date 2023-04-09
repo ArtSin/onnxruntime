@@ -104,6 +104,18 @@ impl<'a> SessionBuilder<'a> {
         assert_null_pointer(status, "SessionStatus")?;
         assert_not_null_pointer(session_options_ptr, "SessionOptions")?;
 
+        // Use shared memory allocator
+        let status = unsafe {
+            env.env().api().AddSessionConfigEntry.unwrap()(
+                session_options_ptr,
+                CString::new("session.use_env_allocators")
+                    .unwrap()
+                    .into_raw(),
+                CString::new("1").unwrap().into_raw(),
+            )
+        };
+        status_to_result(status).map_err(OrtError::SessionOptions)?;
+
         Ok(SessionBuilder {
             env,
             session_options_ptr,
@@ -111,14 +123,14 @@ impl<'a> SessionBuilder<'a> {
             memory_type: MemType::Default,
         })
     }
-    
+
     /// Set the session to use CUDA
     pub fn use_cuda(self, device_id: i32) -> Result<SessionBuilder<'a>> {
         let options = sys::OrtCUDAProviderOptions {
             device_id,
             cudnn_conv_algo_search: sys::OrtCudnnConvAlgoSearch::OrtCudnnConvAlgoSearchDefault,
             gpu_mem_limit: usize::MAX,
-            arena_extend_strategy: 0,
+            arena_extend_strategy: 1,
             do_copy_in_default_stream: 1,
             has_user_compute_stream: 0,
             user_compute_stream: std::ptr::null_mut(),
